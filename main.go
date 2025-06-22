@@ -9,6 +9,8 @@ import (
 	"github.com/AlexG28/keyvalue/store"
 )
 
+var localStore = store.InitStore()
+
 func Set(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("r.URL.Path: %v\n", r.URL.Path)
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -18,7 +20,7 @@ func Set(w http.ResponseWriter, r *http.Request) {
 		value := parts[2]
 		fmt.Fprintf(w, "Key: %s, Value: %s\n", key, value)
 
-		err := store.Add(key, value)
+		err := localStore.Add(key, value)
 
 		if err != nil {
 			http.Error(w, "Failed to add to store", http.StatusInternalServerError)
@@ -34,21 +36,21 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) >= 2 || parts[0] != "Get" {
 		key := parts[1]
-		fmt.Fprintf(w, "Key: %s\n", key)
+		// fmt.Fprintf(w, "Key: %s\n", key)
 
-		val, err := store.Get(key)
+		val, err := localStore.Get(key)
 
 		if err != nil {
-			http.Error(w, "Failed to get from store", http.StatusInternalServerError)
+			http.Error(w, "Failed to get from store", http.StatusNotFound)
 		}
 
-		fmt.Fprintf(w, "Value: %s\n", val)
+		fmt.Fprintf(w, "%s", val)
 
 	} else {
 		http.Error(w, "Invalid URL format. Expected Get/{key}", http.StatusBadRequest)
 	}
 
-	fmt.Fprint(w, http.StatusOK)
+	// fmt.Fprint(w, http.StatusOK)
 }
 func Delete(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -56,7 +58,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		key := parts[1]
 		fmt.Fprintf(w, "Key: %s\n", key)
 
-		err := store.Delete(key)
+		err := localStore.Delete(key)
 
 		if err != nil {
 			http.Error(w, "Failed to delete", http.StatusInternalServerError)
