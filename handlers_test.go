@@ -53,6 +53,12 @@ func resetMockStore() {
 	mockStore.data = make(map[string]string)
 }
 
+func populateMockStore() {
+	localStore.Add("hello", "there")
+	localStore.Add("random", "value")
+	localStore.Add("foo", "bar")
+}
+
 func TestGet(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -195,6 +201,69 @@ func TestSet(t *testing.T) {
 				_, err := localStore.Get(tt.expectedKey)
 				if err == nil {
 					t.Errorf("Key somehow in the map: %q", tt.expectedKey)
+				}
+			}
+		})
+	}
+}
+
+func TestDelete(t *testing.T) {
+	tests := []struct {
+		name          string
+		keyToDelete   string
+		expectedValue string
+		requestPath   string
+		expectedCode  int
+	}{
+		{
+			name:          "Successful delete",
+			keyToDelete:   "hello",
+			expectedValue: "",
+			requestPath:   "/Delete/hello",
+			expectedCode:  http.StatusOK,
+		},
+		{
+			name:          "Missing Key in URL",
+			keyToDelete:   "",
+			expectedValue: "",
+			requestPath:   "/Delete/",
+			expectedCode:  http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetMockStore()
+			populateMockStore()
+
+			req, err := http.NewRequest(http.MethodGet, tt.requestPath, nil)
+			if err != nil {
+				t.Fatalf("Could not create request: %v", err)
+			}
+			rr := httptest.NewRecorder()
+
+			Delete(rr, req)
+
+			if rr.Code != tt.expectedCode {
+				t.Errorf("handler returned wrong status code: got %d want %d",
+					rr.Code, tt.expectedCode)
+			}
+			if tt.keyToDelete != "" && tt.expectedValue != "" {
+
+				actualValue, err := localStore.Get(tt.keyToDelete)
+
+				if err != nil {
+					t.Errorf("key mising from map: %q", tt.keyToDelete)
+				}
+
+				if actualValue != tt.expectedValue {
+					t.Errorf("handler returned unexpected value:\nGOT: %q\nWANT: %q",
+						actualValue, tt.expectedValue)
+				}
+			} else {
+				_, err := localStore.Get(tt.keyToDelete)
+				if err == nil {
+					t.Errorf("Key somehow in the map: %q", tt.keyToDelete)
 				}
 			}
 		})
