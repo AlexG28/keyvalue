@@ -27,11 +27,11 @@ func Set(w http.ResponseWriter, r *http.Request) {
 	}
 	key, value := args[0], args[1]
 	if key == "" {
-		http.Error(w, "Missing Key", http.StatusBadRequest)
+		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
 		return
 	}
 	if value == "" {
-		http.Error(w, "Missing Value", http.StatusBadRequest)
+		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
 		return
 	}
 	if err := localStore.Add(key, value); err != nil {
