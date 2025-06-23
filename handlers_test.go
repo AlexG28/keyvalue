@@ -82,7 +82,7 @@ func TestGet(t *testing.T) {
 			setupValue:   "",
 			requestPath:  "/Get/nonexistent",
 			expectedCode: http.StatusNotFound,
-			expectedBody: "Failed to get from store\n",
+			expectedBody: "Key not found\n",
 		},
 		{
 			name:         "Missing Key in URL",
@@ -119,7 +119,6 @@ func TestGet(t *testing.T) {
 
 			Get(rr, req)
 
-			// Assert
 			if rr.Code != tt.expectedCode {
 				t.Errorf("handler returned wrong status code: got %d want %d",
 					rr.Code, tt.expectedCode)
