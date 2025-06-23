@@ -12,25 +12,34 @@ import (
 var localStore = store.InitStore()
 
 func Set(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("r.URL.Path: %v\n", r.URL.Path)
+	// fmt.Printf("r.URL.Path: %v\n", r.URL.Path)
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	fmt.Printf("parts: %v\n", parts)
-	if len(parts) >= 3 || parts[0] != "Set" {
-		key := parts[1]
-		value := parts[2]
-		fmt.Fprintf(w, "Key: %s, Value: %s\n", key, value)
-
-		err := localStore.Add(key, value)
-
-		if err != nil {
-			http.Error(w, "Failed to add to store", http.StatusInternalServerError)
-		}
-
-	} else {
+	// fmt.Printf("parts: %v\n", parts)
+	if len(parts) < 3 || parts[0] != "Set" {
 		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
+		return
 	}
 
-	fmt.Fprint(w, http.StatusOK)
+	key := parts[1]
+	value := parts[2]
+	if key == "" {
+		http.Error(w, "Missing Key", http.StatusBadRequest)
+		return
+	}
+	if value == "" {
+		http.Error(w, "Missing Value", http.StatusBadRequest)
+		return
+	}
+
+	// fmt.Fprintf(w, "Key: %s, Value: %s\n", key, value)
+
+	err := localStore.Add(key, value)
+
+	if err != nil {
+		http.Error(w, "Failed to add to store", http.StatusInternalServerError)
+	}
+
+	// fmt.Fprint(w, http.StatusOK)
 }
 func Get(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")

@@ -54,7 +54,6 @@ func resetMockStore() {
 }
 
 func TestGet(t *testing.T) {
-	// Use table-driven tests for multiple scenarios
 	tests := []struct {
 		name         string
 		setupKey     string
@@ -69,11 +68,11 @@ func TestGet(t *testing.T) {
 			setupValue:   "there",
 			requestPath:  "/Get/hello",
 			expectedCode: http.StatusOK,
-			expectedBody: "there", // This is the expected value from your mock store
+			expectedBody: "there",
 		},
 		{
 			name:         "Key Not Found",
-			setupKey:     "", // No key set
+			setupKey:     "",
 			setupValue:   "",
 			requestPath:  "/Get/nonexistent",
 			expectedCode: http.StatusNotFound,
@@ -128,6 +127,75 @@ func TestGet(t *testing.T) {
 			if string(body) != tt.expectedBody {
 				t.Errorf("handler returned unexpected body:\nGOT: %q\nWANT: %q",
 					string(body), tt.expectedBody)
+			}
+		})
+	}
+}
+
+func TestSet(t *testing.T) {
+	tests := []struct {
+		name          string
+		expectedKey   string
+		expectedValue string
+		requestPath   string
+		expectedCode  int
+	}{
+		{
+			name:          "Successful set",
+			expectedKey:   "hello",
+			expectedValue: "there",
+			requestPath:   "/Set/hello/there",
+			expectedCode:  http.StatusOK,
+		},
+		{
+			name:          "Missing Key in URL",
+			expectedKey:   "",
+			expectedValue: "",
+			requestPath:   "/Set//randomvalue",
+			expectedCode:  http.StatusBadRequest,
+		},
+		{
+			name:          "Missing Value in URL",
+			expectedKey:   "",
+			expectedValue: "",
+			requestPath:   "/Get/randomkey/",
+			expectedCode:  http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetMockStore()
+
+			req, err := http.NewRequest(http.MethodGet, tt.requestPath, nil)
+			if err != nil {
+				t.Fatalf("Could not create request: %v", err)
+			}
+			rr := httptest.NewRecorder()
+
+			Set(rr, req)
+
+			if rr.Code != tt.expectedCode {
+				t.Errorf("handler returned wrong status code: got %d want %d",
+					rr.Code, tt.expectedCode)
+			}
+			if tt.expectedKey != "" && tt.expectedValue != "" {
+
+				actualValue, err := localStore.Get(tt.expectedKey)
+
+				if err != nil {
+					t.Errorf("key mising from map: %q", tt.expectedKey)
+				}
+
+				if actualValue != tt.expectedValue {
+					t.Errorf("handler returned unexpected value:\nGOT: %q\nWANT: %q",
+						actualValue, tt.expectedValue)
+				}
+			} else {
+				_, err := localStore.Get(tt.expectedKey)
+				if err == nil {
+					t.Errorf("Key somehow in the map: %q", tt.expectedKey)
+				}
 			}
 		})
 	}
