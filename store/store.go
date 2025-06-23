@@ -25,7 +25,7 @@ type storeStruct struct {
 	m sync.RWMutex
 }
 
-func (s storeStruct) Add(key, value string) error {
+func (s *storeStruct) Add(key, value string) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -34,7 +34,7 @@ func (s storeStruct) Add(key, value string) error {
 	return nil
 }
 
-func (s storeStruct) Get(key string) (string, error) {
+func (s *storeStruct) Get(key string) (string, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -47,7 +47,7 @@ func (s storeStruct) Get(key string) (string, error) {
 	return val, nil
 }
 
-func (s storeStruct) Delete(key string) error {
+func (s *storeStruct) Delete(key string) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 

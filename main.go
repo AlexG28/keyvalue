@@ -72,10 +72,15 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Deleted key '%s'\n", key)
 }
 
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, http.StatusOK)
+}
+
 func main() {
 	http.HandleFunc("/Set/", Set)
 	http.HandleFunc("/Get/", Get)
 	http.HandleFunc("/Delete/", Delete)
+	http.HandleFunc("/Health", HealthCheck)
 	log.Print("Starting on localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
