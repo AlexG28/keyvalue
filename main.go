@@ -4,83 +4,61 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"path"
 
 	"github.com/AlexG28/keyvalue/store"
 )
-
-var localStore = store.InitStore()
-
-func parsePath(r *http.Request) (cmd string, args []string) {
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) == 0 {
-		return "", nil
-	}
-	return parts[0], parts[1:]
-}
-
-func Set(w http.ResponseWriter, r *http.Request) {
-	cmd, args := parsePath(r)
-	if cmd != "Set" || len(args) < 2 {
-		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
-		return
-	}
-	key, value := args[0], args[1]
-	if key == "" {
-		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
-		return
-	}
-	if value == "" {
-		http.Error(w, "Invalid URL format. Expected Set/{key}/{value}", http.StatusBadRequest)
-		return
-	}
-	if err := localStore.Add(key, value); err != nil {
-		http.Error(w, "Failed to add to store", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Set key '%s' to value '%s'\n", key, value)
-}
-
-func Get(w http.ResponseWriter, r *http.Request) {
-	cmd, args := parsePath(r)
-	if cmd != "Get" || len(args) < 1 {
-		http.Error(w, "Invalid URL format. Expected Get/{key}", http.StatusBadRequest)
-		return
-	}
-	key := args[0]
-	val, err := localStore.Get(key)
-	if err != nil {
-		http.Error(w, "Key not found", http.StatusNotFound)
-		return
-	}
-	fmt.Fprintf(w, "%s", val)
-}
-
-func Delete(w http.ResponseWriter, r *http.Request) {
-	cmd, args := parsePath(r)
-	if cmd != "Delete" || len(args) < 1 {
-		http.Error(w, "Invalid URL format. Expected Delete/{key}", http.StatusBadRequest)
-		return
-	}
-	key := args[0]
-	if err := localStore.Delete(key); err != nil {
-		http.Error(w, "Failed to delete key", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Deleted key '%s'\n", key)
-}
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, http.StatusOK)
 }
 
 func main() {
-	http.HandleFunc("/Set/", Set)
-	http.HandleFunc("/Get/", Get)
-	http.HandleFunc("/Delete/", Delete)
+
+	cfg := getConfig()
+
+	// Create a single store that will be shared between Raft FSM and HTTP handlers
+	tempStore := store.InitStore()
+
+	// Create FSM that uses the same store
+	kf := &kvFsm{store: tempStore}
+
+	dataDir := "data"
+	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, "localhost:"+cfg.raftPort, kf)
+	if err != nil {
+		log.Fatalf("something went wrong in main: %s", err)
+	}
+
+	hs := httpServer{r, tempStore}
+
+	http.HandleFunc("/Set/", hs.Set)
+	http.HandleFunc("/Get/", hs.Get)
+	http.HandleFunc("/Delete/", hs.Delete)
+	http.HandleFunc("/Join", hs.Join)
 	http.HandleFunc("/Health", HealthCheck)
-	log.Print("Starting on localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Starting on localhost:" + cfg.httpPort)
+	log.Fatal(http.ListenAndServe(":"+cfg.httpPort, nil))
+
+	// db := &sync.Map{}
+	// kf := &kvFsm{db}
+
+	// dataDir := "data"
+	// r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, "localhost:"+cfg.raftPort, kf)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// hs := httpServer{r, db}
+
+	// http.HandleFunc("/set", hs.setHandler)
+	// http.HandleFunc("/get", hs.getHandler)
+	// http.HandleFunc("/join", hs.joinHandler)
+	// http.ListenAndServe(":"+cfg.httpPort, nil)
+
+	// http.HandleFunc("/Set/", Set)
+	// http.HandleFunc("/Get/", Get)
+	// http.HandleFunc("/Delete/", Delete)
+	// http.HandleFunc("/Health", HealthCheck)
+	// log.Print("Starting on localhost:8080")
+	// log.Fatal(http.ListenAndServe(":8080", nil))
 }
