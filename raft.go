@@ -18,19 +18,15 @@ type kvFsm struct {
 	store store.Store
 }
 
-// Simple snapshot implementation
 type kvSnapshot struct {
 	store store.Store
 }
 
 func (kf *kvFsm) Snapshot() (raft.FSMSnapshot, error) {
-	// In a real implementation, you'd want to serialize the entire store state
 	return &kvSnapshot{store: kf.store}, nil
 }
 
 func (ks *kvSnapshot) Persist(sink raft.SnapshotSink) error {
-	// In a real implementation, you'd serialize the entire store here
-	// For now, we'll just write a marker
 	_, err := sink.Write([]byte("snapshot"))
 	if err != nil {
 		sink.Cancel()
@@ -40,26 +36,22 @@ func (ks *kvSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (ks *kvSnapshot) Release() {
-	// Cleanup if needed
+
 }
 
 func (kf *kvFsm) Apply(log *raft.Log) any {
 	switch log.Type {
 	case raft.LogCommand:
-		// Try to unmarshal as set payload first
 		var sp setPayload
 		if err := json.Unmarshal(log.Data, &sp); err == nil && sp.Key != "" {
-			// This is a set operation
 			if err := kf.store.Add(sp.Key, sp.Value); err != nil {
 				return fmt.Errorf("Could not add to store: %s", err)
 			}
 			return nil
 		}
 
-		// Try to unmarshal as delete payload
 		var dp deletePayload
 		if err := json.Unmarshal(log.Data, &dp); err == nil && dp.Key != "" {
-			// This is a delete operation
 			if err := kf.store.Delete(dp.Key); err != nil {
 				return fmt.Errorf("Could not delete from store: %s", err)
 			}
@@ -73,10 +65,6 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 }
 
 func (kf *kvFsm) Restore(rc io.ReadCloser) error {
-	// Clear existing data by creating a new store
-	// Note: This is a simplified approach. In production, you'd want to implement
-	// a proper clear method in your store interface
-
 	decoder := json.NewDecoder(rc)
 
 	for decoder.More() {
