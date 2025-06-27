@@ -83,11 +83,11 @@ func (kf *kvFsm) Restore(rc io.ReadCloser) error {
 		var sp setPayload
 		err := decoder.Decode(&sp)
 		if err != nil {
-			return fmt.Errorf("Could not decode payload: %s", err)
+			return fmt.Errorf("could not decode payload: %s", err)
 		}
 
 		if err := kf.store.Add(sp.Key, sp.Value); err != nil {
-			return fmt.Errorf("Could not restore key-value: %s", err)
+			return fmt.Errorf("could not restore key-value: %s", err)
 		}
 	}
 
@@ -97,27 +97,27 @@ func (kf *kvFsm) Restore(rc io.ReadCloser) error {
 func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create data directory: %s", err)
+		return nil, fmt.Errorf("could not create data directory: %s", err)
 	}
 
 	store, err := raftboltdb.NewBoltStore(path.Join(dir, "bolt"))
 	if err != nil {
-		return nil, fmt.Errorf("Could not create bolt store: %s", err)
+		return nil, fmt.Errorf("could not create bolt store: %s", err)
 	}
 
 	snapshots, err := raft.NewFileSnapshotStore(path.Join(dir, "snapshot"), 2, os.Stderr)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create snapshot store: %s", err)
+		return nil, fmt.Errorf("could not create snapshot store: %s", err)
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", raftAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Could not resolve address: %s", err)
+		return nil, fmt.Errorf("could not resolve address: %s", err)
 	}
 
 	transport, err := raft.NewTCPTransport(raftAddress, tcpAddr, 10, time.Second*10, os.Stderr)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create tcp transport: %s", err)
+		return nil, fmt.Errorf("could not create tcp transport: %s", err)
 	}
 
 	raftCfg := raft.DefaultConfig()

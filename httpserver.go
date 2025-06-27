@@ -11,8 +11,14 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+type RaftNode interface {
+	Apply([]byte, time.Duration) raft.ApplyFuture
+	AddVoter(raft.ServerID, raft.ServerAddress, uint64, time.Duration) raft.IndexFuture
+	State() raft.RaftState
+}
+
 type httpServer struct {
-	r *raft.Raft
+	r RaftNode
 	s store.Store
 }
 
@@ -32,7 +38,6 @@ func (hs httpServer) Set(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create payload with both key and value
 	payload := setPayload{Key: key, Value: value}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -40,7 +45,6 @@ func (hs httpServer) Set(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply to Raft first - this ensures consistency across the cluster
 	future := hs.r.Apply(data, 3*time.Second)
 	if err := future.Error(); err != nil {
 		http.Error(w, fmt.Sprintf("Could not write key-value: %s", err), http.StatusInternalServerError)
@@ -104,7 +108,6 @@ func (hs httpServer) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create payload for deletion
 	payload := deletePayload{Key: key}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -112,7 +115,6 @@ func (hs httpServer) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply to Raft first - this ensures consistency across the cluster
 	future := hs.r.Apply(data, 3*time.Second)
 	if err := future.Error(); err != nil {
 		http.Error(w, fmt.Sprintf("Could not delete key: %s", err), http.StatusInternalServerError)
