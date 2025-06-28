@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -88,12 +87,11 @@ func (hs httpServer) Join(w http.ResponseWriter, r *http.Request) {
 	err := hs.r.AddVoter(raft.ServerID(followerId), raft.ServerAddress(followerAddr), 0, 0).Error()
 
 	if err != nil {
-		log.Printf("Failed to add follower: %s", err)
 		http.Error(w, "Failed to add follower", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Successfully added follower %s at %s\n", followerId, followerAddr)
+	fmt.Fprintf(w, "Successfully added follower %s at %s", followerId, followerAddr)
 }
 
 func (hs httpServer) Delete(w http.ResponseWriter, r *http.Request) {
