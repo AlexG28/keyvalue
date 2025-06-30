@@ -122,3 +122,12 @@ func (hs httpServer) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Deleted key '%s'\n", key)
 }
+
+func (hs httpServer) IsLeader(w http.ResponseWriter, r *http.Request) {
+	if hs.r.State() == raft.Leader {
+		fmt.Fprintf(w, "I am the leader")
+		return
+	}
+
+	fmt.Fprintf(w, "I am not the leader")
+}

@@ -45,7 +45,7 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 		var sp setPayload
 		if err := json.Unmarshal(log.Data, &sp); err == nil && sp.Key != "" {
 			if err := kf.store.Add(sp.Key, sp.Value); err != nil {
-				return fmt.Errorf("Could not add to store: %s", err)
+				return fmt.Errorf("could not add to store: %s", err)
 			}
 			return nil
 		}
@@ -53,12 +53,12 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 		var dp deletePayload
 		if err := json.Unmarshal(log.Data, &dp); err == nil && dp.Key != "" {
 			if err := kf.store.Delete(dp.Key); err != nil {
-				return fmt.Errorf("Could not delete from store: %s", err)
+				return fmt.Errorf("could not delete from store: %s", err)
 			}
 			return nil
 		}
 
-		return fmt.Errorf("Could not parse payload: unknown operation type")
+		return fmt.Errorf("could not parse payload: unknown operation type")
 	default:
 		return fmt.Errorf("Unknown raft log type: %#v", log.Type)
 	}
@@ -113,7 +113,7 @@ func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
 
 	r, err := raft.NewRaft(raftCfg, kf, store, store, snapshots, transport)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create raft instance: %s", err)
+		return nil, fmt.Errorf("could not create raft instance: %s", err)
 	}
 
 	r.BootstrapCluster(raft.Configuration{
