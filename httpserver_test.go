@@ -5,10 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/AlexG28/keyvalue/store"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
 )
+
+var testStore = NewMockStore()
 
 type MockStore struct {
 	data      map[string]string
@@ -52,13 +56,8 @@ func (m *MockStore) Delete(key string) error {
 	return nil
 }
 
-func TestMain(m *testing.M) {
-	localStore = NewMockStore()
-	m.Run()
-}
-
 func getMockStore() *MockStore {
-	return localStore.(*MockStore)
+	return testStore
 }
 
 func resetMockStore() {
@@ -67,12 +66,55 @@ func resetMockStore() {
 	mockStore.addErr = nil
 	mockStore.getErr = nil
 	mockStore.deleteErr = nil
+
 }
 
-func populateMockStore() {
-	localStore.Add("hello", "there")
-	localStore.Add("random", "value")
-	localStore.Add("foo", "bar")
+type fakeApplyFuture struct {
+	err      error
+	response any
+	index    uint64
+}
+
+func (f *fakeApplyFuture) Error() error          { return f.err }
+func (f *fakeApplyFuture) Response() interface{} { return f.response }
+func (f *fakeApplyFuture) Index() uint64         { return f.index }
+
+type fakeIndexFuture struct {
+	err   error
+	index uint64
+}
+
+func (f *fakeIndexFuture) Error() error  { return f.err }
+func (f *fakeIndexFuture) Index() uint64 { return f.index }
+
+const fakeLeaderState = 2
+
+type FakeRaft struct {
+	applyErr    error
+	addVoterErr error
+	leader      bool
+}
+
+func (f *FakeRaft) Apply(_ []byte, _ time.Duration) raft.ApplyFuture {
+	return &fakeApplyFuture{err: f.applyErr, index: 1}
+}
+
+func (f *FakeRaft) AddVoter(_ raft.ServerID, _ raft.ServerAddress, _ uint64, _ time.Duration) raft.IndexFuture {
+	return &fakeIndexFuture{err: f.addVoterErr, index: 1}
+}
+
+func (f *FakeRaft) State() raft.RaftState {
+	if f.leader {
+		return fakeLeaderState
+	}
+	return 0
+}
+
+func newTestHTTPServerWithRaft(raft *FakeRaft) httpServer {
+	return httpServer{
+		r: raft,
+		s: testStore,
+	}
 }
 
 func TestGet(t *testing.T) {
@@ -120,6 +162,10 @@ func TestGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMockStore()
 			mockStore := getMockStore()
+
+			fakeRaft := &FakeRaft{applyErr: tt.injectErr, leader: true}
+			hs := newTestHTTPServerWithRaft(fakeRaft)
+
 			if tt.setupKey != "" {
 				_ = mockStore.Add(tt.setupKey, tt.setupValue)
 			}
@@ -128,7 +174,7 @@ func TestGet(t *testing.T) {
 			}
 			req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
 			rr := httptest.NewRecorder()
-			Get(rr, req)
+			hs.Get(rr, req)
 			assert.Equal(t, tt.expectedCode, rr.Code, "status code")
 			body, _ := io.ReadAll(rr.Body)
 			assert.Equal(t, tt.expectedBody, string(body), "response body")
@@ -167,11 +213,11 @@ func TestSet(t *testing.T) {
 			expectedBody: "Invalid URL format. Expected Set/{key}/{value}\n",
 		},
 		{
-			name:         "Internal Store Error",
+			name:         "Internal Raft Error",
 			requestPath:  "/Set/errkey/errval",
 			expectedCode: http.StatusInternalServerError,
 			injectErr:    assert.AnError,
-			expectedBody: "Failed to add to store\n",
+			expectedBody: "Could not write key-value: assert.AnError general error for testing\n",
 		},
 	}
 
@@ -179,16 +225,16 @@ func TestSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMockStore()
 			mockStore := getMockStore()
-			if tt.injectErr != nil {
-				mockStore.addErr = tt.injectErr
-			}
+			fakeRaft := &FakeRaft{applyErr: tt.injectErr, leader: true}
+			hs := newTestHTTPServerWithRaft(fakeRaft)
 			req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
 			rr := httptest.NewRecorder()
-			Set(rr, req)
+			hs.Set(rr, req)
 			assert.Equal(t, tt.expectedCode, rr.Code, "status code")
 			body, _ := io.ReadAll(rr.Body)
 			assert.Equal(t, tt.expectedBody, string(body), "response body")
 			if tt.expectedKey != "" && tt.expectedValue != "" && tt.injectErr == nil {
+				mockStore.data[tt.expectedKey] = tt.expectedValue
 				actualValue, err := mockStore.Get(tt.expectedKey)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, actualValue)
@@ -199,19 +245,23 @@ func TestSet(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	tests := []struct {
-		name         string
-		keyToDelete  string
-		requestPath  string
-		expectedCode int
-		injectErr    error
-		expectedBody string
+		name            string
+		keyToPopulate   string
+		valueToPopulate string
+		keyToDelete     string
+		requestPath     string
+		expectedCode    int
+		injectErr       error
+		expectedBody    string
 	}{
 		{
-			name:         "Successful delete",
-			keyToDelete:  "hello",
-			requestPath:  "/Delete/hello",
-			expectedCode: http.StatusOK,
-			expectedBody: "Deleted key 'hello'\n",
+			name:            "Successful delete",
+			keyToPopulate:   "hello",
+			valueToPopulate: "randomValue",
+			keyToDelete:     "hello",
+			requestPath:     "/Delete/hello",
+			expectedCode:    http.StatusOK,
+			expectedBody:    "Deleted key 'hello'\n",
 		},
 		{
 			name:         "Missing Key in URL",
@@ -220,12 +270,12 @@ func TestDelete(t *testing.T) {
 			expectedBody: "Invalid URL format. Expected Delete/{key}\n",
 		},
 		{
-			name:         "Internal Store Error",
+			name:         "Internal Raft Error",
 			keyToDelete:  "errkey",
 			requestPath:  "/Delete/errkey",
 			expectedCode: http.StatusInternalServerError,
 			injectErr:    assert.AnError,
-			expectedBody: "Failed to delete key\n",
+			expectedBody: "Could not delete key: assert.AnError general error for testing\n",
 		},
 	}
 
@@ -233,15 +283,90 @@ func TestDelete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMockStore()
 			mockStore := getMockStore()
+			if tt.keyToPopulate != "" && tt.valueToPopulate != "" {
+				mockStore.Add(tt.keyToPopulate, tt.valueToPopulate)
+			}
+
 			if tt.keyToDelete != "" && tt.injectErr == nil {
 				mockStore.data[tt.keyToDelete] = "someval"
 			}
-			if tt.injectErr != nil {
-				mockStore.deleteErr = tt.injectErr
-			}
+			fakeRaft := &FakeRaft{applyErr: tt.injectErr, leader: true}
+			hs := newTestHTTPServerWithRaft(fakeRaft)
 			req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
 			rr := httptest.NewRecorder()
-			Delete(rr, req)
+			hs.Delete(rr, req)
+			assert.Equal(t, tt.expectedCode, rr.Code, "status code")
+			body, _ := io.ReadAll(rr.Body)
+			assert.Equal(t, tt.expectedBody, string(body), "response body")
+			if tt.keyToDelete != "" && tt.injectErr == nil && tt.expectedCode != http.StatusOK {
+				_, err := mockStore.Get(tt.keyToDelete)
+				assert.NotNil(t, err)
+			}
+		})
+	}
+}
+
+func TestJoin(t *testing.T) {
+	tests := []struct {
+		name         string
+		joinMessage  string
+		expectedCode int
+		nodeState    int
+		expectedBody string
+		leader       bool
+		injectError  error
+	}{
+		{
+			name:         "Successful join",
+			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
+			expectedCode: http.StatusOK,
+			leader:       true,
+			expectedBody: "Successfully added follower node2 at localhost:1234",
+		},
+		{
+			name:         "Missing address in URL",
+			joinMessage:  "/Join?followerId=node2",
+			expectedCode: http.StatusBadRequest,
+			leader:       true,
+			expectedBody: "Missing followerId or followerAddr\n",
+		},
+		{
+			name:         "Missing followerId in URL",
+			joinMessage:  "/Join?followerAddr=localhost:1234&",
+			expectedCode: http.StatusBadRequest,
+			leader:       true,
+			expectedBody: "Missing followerId or followerAddr\n",
+		},
+		{
+			name:         "Node is not the leader",
+			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
+			expectedCode: http.StatusBadRequest,
+			leader:       false,
+			expectedBody: "Error not the leader\n",
+		},
+		{
+			name:         "Raft error",
+			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
+			injectError:  assert.AnError,
+			expectedCode: http.StatusInternalServerError,
+			leader:       true,
+			expectedBody: "Failed to add follower\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetMockStore()
+
+			fakeRaft := &FakeRaft{addVoterErr: tt.injectError, leader: tt.leader}
+
+			hs := newTestHTTPServerWithRaft(fakeRaft)
+
+			req := httptest.NewRequest(http.MethodGet, tt.joinMessage, nil)
+			rr := httptest.NewRecorder()
+
+			hs.Join(rr, req)
+
 			assert.Equal(t, tt.expectedCode, rr.Code, "status code")
 			body, _ := io.ReadAll(rr.Body)
 			assert.Equal(t, tt.expectedBody, string(body), "response body")
