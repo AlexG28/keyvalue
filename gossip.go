@@ -94,7 +94,7 @@ func (gm *GossipManager) AddRaftNode(node *memberlist.Node) {
 
 	newRaftPort := string(node.Meta)
 
-	raftAddr := fmt.Sprintf("%s:%s", node.Addr.String(), newRaftPort)
+	raftAddr := fmt.Sprintf("localhost:%s", newRaftPort)
 	fmt.Printf("Thea ddress we do have is: %s and the node name is: %s\n", raftAddr, node.Name)
 
 	err := gm.r.AddVoter(raft.ServerID(node.Name), raft.ServerAddress(raftAddr), 0, 0).Error()
