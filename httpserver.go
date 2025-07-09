@@ -13,6 +13,7 @@ import (
 type RaftNode interface {
 	Apply([]byte, time.Duration) raft.ApplyFuture
 	AddVoter(raft.ServerID, raft.ServerAddress, uint64, time.Duration) raft.IndexFuture
+	RemoveServer(raft.ServerID, uint64, time.Duration) raft.IndexFuture
 	State() raft.RaftState
 }
 
@@ -83,6 +84,9 @@ func (hs httpServer) Join(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error not the leader", http.StatusBadRequest)
 		return
 	}
+	// "http://localhost:2222/Join?followerId=node2&followerAddr=localhost:8223"
+	// followerID   = node2
+	// followerAddr = localhost:8223
 
 	err := hs.r.AddVoter(raft.ServerID(followerId), raft.ServerAddress(followerAddr), 0, 0).Error()
 

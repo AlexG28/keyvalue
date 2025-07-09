@@ -8,9 +8,11 @@ import (
 )
 
 type config struct {
-	id       string
-	httpPort string
-	raftPort string
+	id             string
+	httpPort       string
+	raftPort       string
+	gossipPort     string
+	existingGossip string
 }
 
 type setPayload struct {
@@ -35,6 +37,8 @@ func getConfig() config {
 	flag.StringVar(&cfg.id, "node-id", "node1", "Unique identifier for the node")
 	flag.StringVar(&cfg.httpPort, "http-port", "2222", "Port for HTTP communication")
 	flag.StringVar(&cfg.raftPort, "raft-port", "8222", "Port for Raft communication")
+	flag.StringVar(&cfg.gossipPort, "gossip-port", "7469", "Port for Gossip communication")
+	flag.StringVar(&cfg.existingGossip, "existing-gossip", "7469", "Port for joining gossip cluster")
 
 	flag.Parse()
 
@@ -48,6 +52,10 @@ func getConfig() config {
 
 	if cfg.httpPort == "" {
 		log.Fatal("Missing required parameter: --http-port")
+	}
+
+	if cfg.gossipPort == "" {
+		log.Fatal("Missing required parameter: --gossip-port")
 	}
 
 	return cfg

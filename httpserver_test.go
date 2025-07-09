@@ -103,6 +103,10 @@ func (f *FakeRaft) AddVoter(_ raft.ServerID, _ raft.ServerAddress, _ uint64, _ t
 	return &fakeIndexFuture{err: f.addVoterErr, index: 1}
 }
 
+func (f *FakeRaft) RemoveServer(_ raft.ServerID, _ uint64, _ time.Duration) raft.IndexFuture {
+	return &fakeIndexFuture{err: f.addVoterErr, index: 1}
+}
+
 func (f *FakeRaft) State() raft.RaftState {
 	if f.leader {
 		return fakeLeaderState
