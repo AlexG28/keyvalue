@@ -60,7 +60,7 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 
 		return fmt.Errorf("could not parse payload: unknown operation type")
 	default:
-		return fmt.Errorf("Unknown raft log type: %#v", log.Type)
+		return fmt.Errorf("unknown raft log type: %#v", log.Type)
 	}
 }
 
