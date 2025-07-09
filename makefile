@@ -18,4 +18,9 @@ clean:
 		echo "$(BINARY_NAME) not found, nothing to clean."; \
 	fi
 
+	@if [ -d "data" ]; then \
+		rm -rf data; \
+		echo "data directory removed"; \
+	fi 
+
 .PHONY: all build clean

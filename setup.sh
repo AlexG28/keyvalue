@@ -81,3 +81,4 @@ wait $NODE2_PID
 
 # ./kvstore --node-id node1 --http-port 2222 --raft-port 8222 --gossip-port 7469
 # ./kvstore --node-id node2 --http-port 2223 --raft-port 8223 --gossip-port 7470 --existing-gossip 7469
+# curl "http://localhost:2222/Join?followerId=node2&followerAddr=localhost:8223"
