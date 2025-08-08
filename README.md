@@ -32,3 +32,6 @@ and
 curl "localhost:2222/Set/hello/there"
 ```
 
+### Instructions for Docker: 
+build the container with `docker build -t key-value-store .` and then run it with `docker run -p 8080:2222 key-value-store`
+

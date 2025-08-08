@@ -21,12 +21,9 @@ type myEvents struct {
 
 func (e *myEvents) NotifyJoin(n *memberlist.Node) {
 	e.gm.AddRaftNode(n)
-
 	fmt.Printf("%s is activating notifyjoin \n", n.Name)
 }
 func (e *myEvents) NotifyLeave(n *memberlist.Node) {
-	// leave the raft here
-	// add later
 	fmt.Printf("%s is activating notifyleave \n", n.Name)
 }
 func (e *myEvents) NotifyUpdate(n *memberlist.Node) {
@@ -47,7 +44,6 @@ func (d *myDelegate) LocalState(join bool) []byte                { return []byte
 func (d *myDelegate) MergeRemoteState(buf []byte, join bool)     {}
 func (d *myDelegate) NotifyMsg([]byte)                           {}
 
-// NewGossipManager creates a new gossip manager
 func NewGossipManager(cfg *config) (*GossipManager, error) {
 	config := memberlist.DefaultLANConfig()
 	port, _ := strconv.Atoi(cfg.gossipPort)
@@ -104,7 +100,7 @@ func (gm *GossipManager) AddRaftNode(node *memberlist.Node) {
 	fmt.Printf("Successfully connected over raft!!!!!!!!!!!!!!!!!!")
 }
 
-func (gm *GossipManager) JoinCluster(existing []string) error { // this is where you actually join
+func (gm *GossipManager) JoinCluster(existing []string) error {
 	n, err := gm.memberlist.Join(existing)
 	if err != nil {
 		return err
