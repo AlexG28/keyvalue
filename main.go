@@ -27,7 +27,7 @@ func main() {
 	}
 
 	if cfg.existingGossip != "" {
-		err = gossipManager.JoinCluster([]string{"localhost:" + cfg.existingGossip})
+		err = gossipManager.JoinCluster([]string{cfg.joinHost + ":" + cfg.existingGossip})
 
 		if err != nil {
 			log.Fatalf("failed to join gossip cluster: %s", err)
@@ -38,7 +38,7 @@ func main() {
 	kf := &kvFsm{store: localStore}
 
 	dataDir := "data"
-	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, "localhost:"+cfg.raftPort, kf)
+	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, cfg.joinHost+":"+cfg.raftPort, kf)
 	if err != nil {
 		log.Fatalf("something went wrong in main: %s", err)
 	}
@@ -63,6 +63,6 @@ func main() {
 	// http.HandleFunc("/Join", hs.Join)
 	// http.HandleFunc("/Leader", hs.IsLeader)
 	http.HandleFunc("/Health", HealthCheck)
-	log.Println("Starting on localhost:" + cfg.httpPort)
+	log.Println("Starting on " + cfg.joinHost + ":" + cfg.httpPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.httpPort, nil))
 }

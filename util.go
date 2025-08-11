@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -12,6 +12,7 @@ type config struct {
 	httpPort       string
 	raftPort       string
 	gossipPort     string
+	joinHost       string
 	existingGossip string
 }
 
@@ -31,32 +32,27 @@ func parsePath(r *http.Request) (cmd string, args []string) {
 	}
 	return parts[0], parts[1:]
 }
+
 func getConfig() config {
 	cfg := config{}
 
-	flag.StringVar(&cfg.id, "node-id", "node1", "Unique identifier for the node")
+	podName := os.Getenv("POD_NAME")
+	joinHost := os.Getenv("JOIN_HOST")
+
+	if podName == "" {
+		podName = "node1"
+	}
+	if joinHost == "" {
+		joinHost = "localhost"
+	}
+
+	flag.StringVar(&cfg.id, "node-id", podName, "Unique identifier for the node")
 	flag.StringVar(&cfg.httpPort, "http-port", "2222", "Port for HTTP communication")
 	flag.StringVar(&cfg.raftPort, "raft-port", "8222", "Port for Raft communication")
 	flag.StringVar(&cfg.gossipPort, "gossip-port", "7469", "Port for Gossip communication")
-	flag.StringVar(&cfg.existingGossip, "existing-gossip", "7469", "Port for joining gossip cluster")
-
+	flag.StringVar(&cfg.joinHost, "join-host", joinHost, "Hostname to join cluster")
+	flag.StringVar(&cfg.existingGossip, "existing-gossip", "", "Port for joining gossip cluster")
 	flag.Parse()
-
-	if cfg.id == "" {
-		log.Fatal("Missing required parameter: --node-id")
-	}
-
-	if cfg.raftPort == "" {
-		log.Fatal("Missing required parameter: --raft-port")
-	}
-
-	if cfg.httpPort == "" {
-		log.Fatal("Missing required parameter: --http-port")
-	}
-
-	if cfg.gossipPort == "" {
-		log.Fatal("Missing required parameter: --gossip-port")
-	}
 
 	return cfg
 }
