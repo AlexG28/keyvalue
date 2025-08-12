@@ -38,7 +38,7 @@ func main() {
 	kf := &kvFsm{store: localStore}
 
 	dataDir := "data"
-	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, cfg.joinHost+":"+cfg.raftPort, cfg.raftPort, kf)
+	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, cfg.raftPort, kf)
 	if err != nil {
 		log.Fatalf("something went wrong in main: %s", err)
 	}

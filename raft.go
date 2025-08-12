@@ -82,11 +82,21 @@ func (kf *kvFsm) Restore(rc io.ReadCloser) error {
 	return rc.Close()
 }
 
-func setupRaft(dir, nodeId, raftAddress, raftport string, kf *kvFsm) (*raft.Raft, error) {
-	raftAddress2 := fmt.Sprintf("0.0.0.0:%s", raftport)
-	fmt.Println(raftAddress2)
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
+func setupRaft(dir, nodeId, raftPort string, kf *kvFsm) (*raft.Raft, error) {
+	podIP := os.Getenv("POD_IP")
+	if podIP == "" {
+		return nil, fmt.Errorf("POD_IP env var not set")
+	}
+
+	fmt.Println(podIP)
+
+	bindAddr := fmt.Sprintf("0.0.0.0:%s", raftPort)
+	advAddr := fmt.Sprintf("%s:%s", podIP, raftPort)
+
+	fmt.Println("Bind Addr:", bindAddr)
+	fmt.Println("Advertise Addr:", advAddr)
+
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("could not create data directory: %s", err)
 	}
 
@@ -100,12 +110,12 @@ func setupRaft(dir, nodeId, raftAddress, raftport string, kf *kvFsm) (*raft.Raft
 		return nil, fmt.Errorf("could not create snapshot store: %s", err)
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", raftAddress2)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", advAddr)
 	if err != nil {
-		return nil, fmt.Errorf("could not resolve address: %s", err)
+		return nil, fmt.Errorf("could not resolve advertise address: %s", err)
 	}
 
-	transport, err := raft.NewTCPTransport(raftAddress2, tcpAddr, 10, time.Second*10, os.Stderr)
+	transport, err := raft.NewTCPTransport(bindAddr, tcpAddr, 10, time.Second*10, os.Stderr)
 	if err != nil {
 		return nil, fmt.Errorf("could not create tcp transport: %s", err)
 	}

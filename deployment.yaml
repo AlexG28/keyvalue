@@ -58,6 +58,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
 
 ---
 # 3) HTTP services for each pod (direct external access)
