@@ -82,7 +82,9 @@ func (kf *kvFsm) Restore(rc io.ReadCloser) error {
 	return rc.Close()
 }
 
-func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
+func setupRaft(dir, nodeId, raftAddress, raftport string, kf *kvFsm) (*raft.Raft, error) {
+	raftAddress2 := fmt.Sprintf("0.0.0.0:%s", raftport)
+	fmt.Println(raftAddress2)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("could not create data directory: %s", err)
@@ -98,12 +100,12 @@ func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
 		return nil, fmt.Errorf("could not create snapshot store: %s", err)
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", raftAddress)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", raftAddress2)
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve address: %s", err)
 	}
 
-	transport, err := raft.NewTCPTransport(raftAddress, tcpAddr, 10, time.Second*10, os.Stderr)
+	transport, err := raft.NewTCPTransport(raftAddress2, tcpAddr, 10, time.Second*10, os.Stderr)
 	if err != nil {
 		return nil, fmt.Errorf("could not create tcp transport: %s", err)
 	}
