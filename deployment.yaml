@@ -17,6 +17,25 @@ spec:
       targetPort: 8222
 
 ---
+# config map to separate first node from follower nodes in the stateful set.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvstore-config
+data:
+  bootstrap-args: |
+    - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
+    - "--gossip-port=7469"
+    - "--raft-port=8222"
+    - "--node-id=$(POD_NAME)"
+  follower-args: |
+    - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
+    - "--gossip-port=7469"
+    - "--raft-port=8222"
+    - "--node-id=$(POD_NAME)"
+    - "--existing-gossip=7469"
+
+---
 # 2) StatefulSet for the KV store
 apiVersion: apps/v1
 kind: StatefulSet
@@ -44,13 +63,6 @@ spec:
               name: raft
             - containerPort: 2222
               name: http
-          args:
-            - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
-            - "--gossip-port=7469"
-            - "--raft-port=8222"
-            - "--node-id=$(POD_NAME)"
-
-
           env:
             - name: POD_NAME
               valueFrom:
@@ -60,6 +72,22 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+          command: ["/bin/sh"]   
+          args:
+            - "-c"
+            - |
+              if [ "$POD_NAME" == "kvstore-0" ]; then
+                exec /app/kvstore $(cat /config/bootstrap-args)
+              else
+                exec /app/kvstore $(cat /config/follower-args)
+              fi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: kvstore-config
 
 ---
 # 3) HTTP services for each pod (direct external access)
