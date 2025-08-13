@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +15,18 @@ type config struct {
 	gossipPort     string
 	joinHost       string
 	existingGossip string
+}
+
+func (c *config) printConfig() {
+	fmt.Printf("Configuration Details:\n")
+	fmt.Printf("------------------------\n")
+	fmt.Printf("ID:             %s\n", c.id)
+	fmt.Printf("HTTP Port:      %s\n", c.httpPort)
+	fmt.Printf("Raft Port:      %s\n", c.raftPort)
+	fmt.Printf("Gossip Port:    %s\n", c.gossipPort)
+	fmt.Printf("Join Host:      %s\n", c.joinHost)
+	fmt.Printf("Existing Gossip: %s\n", c.existingGossip)
+	fmt.Printf("------------------------\n")
 }
 
 type setPayload struct {
@@ -36,6 +49,8 @@ func parsePath(r *http.Request) (cmd string, args []string) {
 func getConfig() config {
 	cfg := config{}
 
+	fmt.Println("ARGS:", os.Args)
+
 	podName := os.Getenv("POD_NAME")
 	joinHost := os.Getenv("JOIN_HOST")
 
@@ -53,6 +68,8 @@ func getConfig() config {
 	flag.StringVar(&cfg.joinHost, "join-host", joinHost, "Hostname to join cluster")
 	flag.StringVar(&cfg.existingGossip, "existing-gossip", "", "Port for joining gossip cluster")
 	flag.Parse()
+
+	cfg.printConfig()
 
 	return cfg
 }

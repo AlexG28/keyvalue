@@ -34,6 +34,9 @@ func main() {
 			log.Fatalf("failed to join gossip cluster: %s", err)
 		}
 		fmt.Println("Successfully joined cluster")
+	} else {
+		fmt.Println("We ARE NOT IT CHIEF ITS NOT HAPPENING")
+		log.Println("We ARE NOT IT CHIEF ITS NOT HAPPENING")
 	}
 
 	kf := &kvFsm{store: localStore}

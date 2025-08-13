@@ -24,16 +24,16 @@ metadata:
   name: kvstore-config
 data:
   bootstrap-args: |
-    - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
-    - "--gossip-port=7469"
-    - "--raft-port=8222"
-    - "--node-id=$(POD_NAME)"
+    --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
+    --gossip-port=7469
+    --raft-port=8222
+    --node-id=$(POD_NAME)
   follower-args: |
-    - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
-    - "--gossip-port=7469"
-    - "--raft-port=8222"
-    - "--node-id=$(POD_NAME)"
-    - "--existing-gossip=7469"
+    --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
+    --gossip-port=7469
+    --raft-port=8222
+    --existing-gossip=7469
+    --node-id=$(POD_NAME)
 
 ---
 # 2) StatefulSet for the KV store
@@ -76,9 +76,11 @@ spec:
           args:
             - "-c"
             - |
-              if [ "$POD_NAME" == "kvstore-0" ]; then
+              if [ "$POD_NAME" = "kvstore-0" ]; then
+                echo $(cat /config/bootstrap-args)
                 exec /app/kvstore $(cat /config/bootstrap-args)
               else
+                echo $(cat /config/follower-args)
                 exec /app/kvstore $(cat /config/follower-args)
               fi
           volumeMounts:
