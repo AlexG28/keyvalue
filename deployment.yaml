@@ -27,13 +27,11 @@ data:
     --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
     --gossip-port=7469
     --raft-port=8222
-    --node-id=$(POD_NAME)
   follower-args: |
     --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
     --gossip-port=7469
     --raft-port=8222
     --existing-gossip=7469
-    --node-id=$(POD_NAME)
 
 ---
 # 2) StatefulSet for the KV store
