@@ -10,11 +10,11 @@ spec:
     app: kvstore
   ports:
     - name: gossip
-      port: 7946
-      targetPort: 7946
+      port: 7469
+      targetPort: 7469
     - name: raft
-      port: 9000
-      targetPort: 9000
+      port: 8222
+      targetPort: 8222
 
 ---
 # 2) StatefulSet for the KV store
@@ -38,20 +38,18 @@ spec:
           image: test_key_value:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 7946
+            - containerPort: 7469
               name: gossip
-            - containerPort: 9000
+            - containerPort: 8222
               name: raft
             - containerPort: 2222
               name: http
           args:
-            # Adjust args so pods join cluster automatically
-            # - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local:7946"
-            # - "--node-id=$(POD_NAME)"
             - "--join-host=kvstore-0.kvstore-headless.default.svc.cluster.local"
-            - "--gossip-port=7946"
+            - "--gossip-port=7469"
             - "--raft-port=8222"
             - "--node-id=$(POD_NAME)"
+
 
           env:
             - name: POD_NAME

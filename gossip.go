@@ -20,8 +20,8 @@ type myEvents struct {
 }
 
 func (e *myEvents) NotifyJoin(n *memberlist.Node) {
-	e.gm.AddRaftNode(n)
 	fmt.Printf("%s is activating notifyjoin \n", n.Name)
+	e.gm.AddRaftNode(n)
 }
 func (e *myEvents) NotifyLeave(n *memberlist.Node) {
 	fmt.Printf("%s is activating notifyleave \n", n.Name)

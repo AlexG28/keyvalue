@@ -27,6 +27,7 @@ func main() {
 	}
 
 	if cfg.existingGossip != "" {
+		fmt.Println("Going into trying to connec to an existing cluster!!!")
 		err = gossipManager.JoinCluster([]string{cfg.joinHost + ":" + cfg.existingGossip})
 
 		if err != nil {
@@ -60,8 +61,6 @@ func main() {
 	http.HandleFunc("/Set/", hs.Set)
 	http.HandleFunc("/Get/", hs.Get)
 	http.HandleFunc("/Delete/", hs.Delete)
-	// http.HandleFunc("/Join", hs.Join)
-	// http.HandleFunc("/Leader", hs.IsLeader)
 	http.HandleFunc("/Health", HealthCheck)
 	log.Println("Starting on " + cfg.joinHost + ":" + cfg.httpPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.httpPort, nil))
