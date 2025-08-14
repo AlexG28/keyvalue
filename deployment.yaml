@@ -79,6 +79,7 @@ spec:
                 exec /app/kvstore $(cat /config/bootstrap-args)
               else
                 echo $(cat /config/follower-args)
+                sleep 2 
                 exec /app/kvstore $(cat /config/follower-args)
               fi
           volumeMounts:
