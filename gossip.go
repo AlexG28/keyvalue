@@ -20,9 +20,9 @@ type myEvents struct {
 }
 
 func (e *myEvents) NotifyJoin(n *memberlist.Node) {
-	fmt.Printf("%s is activating notifyjoin \n", n.Name)
 	e.gm.AddRaftNode(n)
 }
+
 func (e *myEvents) NotifyLeave(n *memberlist.Node) {
 	fmt.Printf("%s is activating notifyleave \n", n.Name)
 }
@@ -81,23 +81,17 @@ func (gm *GossipManager) AddRaftNode(node *memberlist.Node) {
 		return
 	}
 
-	fmt.Printf("The data we need is name: %s address: %s and port: %d\n", node.Name, node.Addr, node.Port)
 	if gm.r.State() != raft.Leader {
 		return
 	}
 
-	fmt.Printf("node.Meta: %v\n", node.Meta)
-
 	newRaftPort := string(node.Meta)
-	// Use the actual pod IP address for Raft communication, not the gossip service DNS
 	raftAddr := fmt.Sprintf("%s:%s", node.Addr.String(), newRaftPort)
-	fmt.Printf("The raft address we have is: %s and the node name is: %s\n", raftAddr, node.Name)
-
 	err := gm.r.AddVoter(raft.ServerID(node.Name), raft.ServerAddress(raftAddr), 0, 0).Error()
 	if err != nil {
 		panic(fmt.Sprintf("failure when connecting to raft: %s", err))
 	}
-	fmt.Printf("Successfully connected over raft!!!!!!!!!!!!!!!!!!")
+	fmt.Printf("Successfully connected RAFT!")
 }
 
 func (gm *GossipManager) JoinCluster(existing []string) error {

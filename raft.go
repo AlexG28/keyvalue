@@ -35,9 +35,7 @@ func (ks *kvSnapshot) Persist(sink raft.SnapshotSink) error {
 	return sink.Close()
 }
 
-func (ks *kvSnapshot) Release() {
-
-}
+func (ks *kvSnapshot) Release() {}
 
 func (kf *kvFsm) Apply(log *raft.Log) any {
 	switch log.Type {
@@ -60,7 +58,7 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 
 		return fmt.Errorf("could not parse payload: unknown operation type")
 	default:
-		return fmt.Errorf("unknown raft log type: %#v", log.Type)
+		return fmt.Errorf("unknown raft log type: %v", log.Type)
 	}
 }
 
@@ -87,8 +85,6 @@ func setupRaft(dir, nodeId, raftPort string, kf *kvFsm) (*raft.Raft, error) {
 	if podIP == "" {
 		return nil, fmt.Errorf("POD_IP env var not set")
 	}
-
-	fmt.Println(podIP)
 
 	bindAddr := fmt.Sprintf("0.0.0.0:%s", raftPort)
 	advAddr := fmt.Sprintf("%s:%s", podIP, raftPort)
