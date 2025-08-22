@@ -1,0 +1,137 @@
+---
+# 1) Headless service for internal gossip + raft communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvstore-headless
+spec:
+  clusterIP: None
+  selector:
+    app: kvstore
+  ports:
+    - name: gossip
+      port: 7469
+      targetPort: 7469
+    - name: raft
+      port: 8222
+      targetPort: 8222
+
+---
+# config map to separate first node from follower nodes in the stateful set.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvstore-config
+data:
+  bootstrap-args: |
+    --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
+    --gossip-port=7469
+    --raft-port=8222
+  follower-args: |
+    --join-host=kvstore-0.kvstore-headless.default.svc.cluster.local
+    --gossip-port=7469
+    --raft-port=8222
+    --existing-gossip=7469
+
+---
+# 2) StatefulSet for the KV store
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kvstore
+spec:
+  serviceName: kvstore-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kvstore
+  template:
+    metadata:
+      labels:
+        app: kvstore
+    spec:
+      containers:
+        - name: kvstore
+          image: test_key_value:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7469
+              name: gossip
+            - containerPort: 8222
+              name: raft
+            - containerPort: 2222
+              name: http
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command: ["/bin/sh"]   
+          args:
+            - "-c"
+            - |
+              if [ "$POD_NAME" = "kvstore-0" ]; then
+                echo $(cat /config/bootstrap-args)
+                exec /app/kvstore $(cat /config/bootstrap-args)
+              else
+                echo $(cat /config/follower-args)
+                sleep 2 
+                exec /app/kvstore $(cat /config/follower-args)
+              fi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: kvstore-config
+
+---
+# 3) HTTP services for each pod (direct external access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvstore-0-http
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: kvstore-0
+  ports:
+    - name: http
+      port: 2222
+      targetPort: 2222
+      nodePort: 30080  # pick available port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvstore-1-http
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: kvstore-1
+  ports:
+    - name: http
+      port: 2222
+      targetPort: 2222
+      nodePort: 30081
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvstore-2-http
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: kvstore-2
+  ports:
+    - name: http
+      port: 2222
+      targetPort: 2222
+      nodePort: 30082

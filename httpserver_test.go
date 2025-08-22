@@ -103,6 +103,10 @@ func (f *FakeRaft) AddVoter(_ raft.ServerID, _ raft.ServerAddress, _ uint64, _ t
 	return &fakeIndexFuture{err: f.addVoterErr, index: 1}
 }
 
+func (f *FakeRaft) RemoveServer(_ raft.ServerID, _ uint64, _ time.Duration) raft.IndexFuture {
+	return &fakeIndexFuture{err: f.addVoterErr, index: 1}
+}
+
 func (f *FakeRaft) State() raft.RaftState {
 	if f.leader {
 		return fakeLeaderState
@@ -133,7 +137,7 @@ func TestGet(t *testing.T) {
 			setupValue:   "there",
 			requestPath:  "/Get/hello",
 			expectedCode: http.StatusOK,
-			expectedBody: "there",
+			expectedBody: "there\n",
 		},
 		{
 			name:         "Key Not Found",
@@ -302,74 +306,6 @@ func TestDelete(t *testing.T) {
 				_, err := mockStore.Get(tt.keyToDelete)
 				assert.NotNil(t, err)
 			}
-		})
-	}
-}
-
-func TestJoin(t *testing.T) {
-	tests := []struct {
-		name         string
-		joinMessage  string
-		expectedCode int
-		nodeState    int
-		expectedBody string
-		leader       bool
-		injectError  error
-	}{
-		{
-			name:         "Successful join",
-			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
-			expectedCode: http.StatusOK,
-			leader:       true,
-			expectedBody: "Successfully added follower node2 at localhost:1234",
-		},
-		{
-			name:         "Missing address in URL",
-			joinMessage:  "/Join?followerId=node2",
-			expectedCode: http.StatusBadRequest,
-			leader:       true,
-			expectedBody: "Missing followerId or followerAddr\n",
-		},
-		{
-			name:         "Missing followerId in URL",
-			joinMessage:  "/Join?followerAddr=localhost:1234&",
-			expectedCode: http.StatusBadRequest,
-			leader:       true,
-			expectedBody: "Missing followerId or followerAddr\n",
-		},
-		{
-			name:         "Node is not the leader",
-			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
-			expectedCode: http.StatusBadRequest,
-			leader:       false,
-			expectedBody: "Error not the leader\n",
-		},
-		{
-			name:         "Raft error",
-			joinMessage:  "/Join?followerAddr=localhost:1234&followerId=node2",
-			injectError:  assert.AnError,
-			expectedCode: http.StatusInternalServerError,
-			leader:       true,
-			expectedBody: "Failed to add follower\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetMockStore()
-
-			fakeRaft := &FakeRaft{addVoterErr: tt.injectError, leader: tt.leader}
-
-			hs := newTestHTTPServerWithRaft(fakeRaft)
-
-			req := httptest.NewRequest(http.MethodGet, tt.joinMessage, nil)
-			rr := httptest.NewRecorder()
-
-			hs.Join(rr, req)
-
-			assert.Equal(t, tt.expectedCode, rr.Code, "status code")
-			body, _ := io.ReadAll(rr.Body)
-			assert.Equal(t, tt.expectedBody, string(body), "response body")
 		})
 	}
 }

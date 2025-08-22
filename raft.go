@@ -35,9 +35,7 @@ func (ks *kvSnapshot) Persist(sink raft.SnapshotSink) error {
 	return sink.Close()
 }
 
-func (ks *kvSnapshot) Release() {
-
-}
+func (ks *kvSnapshot) Release() {}
 
 func (kf *kvFsm) Apply(log *raft.Log) any {
 	switch log.Type {
@@ -60,7 +58,7 @@ func (kf *kvFsm) Apply(log *raft.Log) any {
 
 		return fmt.Errorf("could not parse payload: unknown operation type")
 	default:
-		return fmt.Errorf("Unknown raft log type: %#v", log.Type)
+		return fmt.Errorf("unknown raft log type: %v", log.Type)
 	}
 }
 
@@ -82,9 +80,19 @@ func (kf *kvFsm) Restore(rc io.ReadCloser) error {
 	return rc.Close()
 }
 
-func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
+func setupRaft(dir, nodeId, raftPort string, kf *kvFsm) (*raft.Raft, error) {
+	podIP := os.Getenv("POD_IP")
+	if podIP == "" {
+		return nil, fmt.Errorf("POD_IP env var not set")
+	}
+
+	bindAddr := fmt.Sprintf("0.0.0.0:%s", raftPort)
+	advAddr := fmt.Sprintf("%s:%s", podIP, raftPort)
+
+	fmt.Println("Bind Addr:", bindAddr)
+	fmt.Println("Advertise Addr:", advAddr)
+
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("could not create data directory: %s", err)
 	}
 
@@ -98,12 +106,12 @@ func setupRaft(dir, nodeId, raftAddress string, kf *kvFsm) (*raft.Raft, error) {
 		return nil, fmt.Errorf("could not create snapshot store: %s", err)
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", raftAddress)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", advAddr)
 	if err != nil {
-		return nil, fmt.Errorf("could not resolve address: %s", err)
+		return nil, fmt.Errorf("could not resolve advertise address: %s", err)
 	}
 
-	transport, err := raft.NewTCPTransport(raftAddress, tcpAddr, 10, time.Second*10, os.Stderr)
+	transport, err := raft.NewTCPTransport(bindAddr, tcpAddr, 10, time.Second*10, os.Stderr)
 	if err != nil {
 		return nil, fmt.Errorf("could not create tcp transport: %s", err)
 	}
