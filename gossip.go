@@ -91,7 +91,7 @@ func (gm *GossipManager) AddRaftNode(node *memberlist.Node) {
 	if err != nil {
 		panic(fmt.Sprintf("failure when connecting to raft: %s", err))
 	}
-	fmt.Printf("Successfully connected RAFT!")
+	fmt.Println("successfully connected Raft")
 }
 
 func (gm *GossipManager) JoinCluster(existing []string) error {

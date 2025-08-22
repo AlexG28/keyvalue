@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"path"
-	"time"
 
 	"github.com/AlexG28/keyvalue/store"
 )
@@ -15,28 +14,19 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
 	cfg := getConfig()
 
 	localStore := store.InitStore()
-
 	gossipManager, err := NewGossipManager(&cfg)
-	fmt.Println("Created gossip mananger")
 	if err != nil {
 		log.Fatalf("failed to create gossip cluster: %s", err)
 	}
 
 	if cfg.existingGossip != "" {
-		fmt.Println("Going into trying to connec to an existing cluster!!!")
 		err = gossipManager.JoinCluster([]string{cfg.joinHost + ":" + cfg.existingGossip})
-
 		if err != nil {
 			log.Fatalf("failed to join gossip cluster: %s", err)
 		}
-		fmt.Println("Successfully joined cluster")
-	} else {
-		fmt.Println("We ARE NOT IT CHIEF ITS NOT HAPPENING")
-		log.Println("We ARE NOT IT CHIEF ITS NOT HAPPENING")
 	}
 
 	kf := &kvFsm{store: localStore}
@@ -44,20 +34,10 @@ func main() {
 	dataDir := "data"
 	r, err := setupRaft(path.Join(dataDir, "raft"+cfg.id), cfg.id, cfg.raftPort, kf)
 	if err != nil {
-		log.Fatalf("something went wrong in main: %s", err)
+		log.Fatalf("setting up Raft failed: %s", err)
 	}
 
 	gossipManager.SetRaftNode(r)
-
-	go func() {
-		for {
-			fmt.Println("Current members: ")
-			for _, member := range gossipManager.memberlist.Members() {
-				fmt.Printf(" Name: %s. Address %s\n", member.Name, member.Addr)
-			}
-			time.Sleep(time.Second * 5)
-		}
-	}()
 
 	hs := httpServer{r, localStore}
 
