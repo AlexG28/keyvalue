@@ -45,6 +45,7 @@ func main() {
 	http.HandleFunc("/Get/", hs.Get)
 	http.HandleFunc("/Delete/", hs.Delete)
 	http.HandleFunc("/Health", HealthCheck)
+	http.HandleFunc("/isLeader", hs.IsLeader)
 	log.Println("Starting on " + cfg.joinHost + ":" + cfg.httpPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.httpPort, nil))
 }
